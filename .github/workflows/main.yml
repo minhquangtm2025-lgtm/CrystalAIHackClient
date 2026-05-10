@@ -36,6 +36,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           # Tên file khi tải về sẽ là AI-Hack-Client-1.21.11
-          name: AI-Hack-Client-1.21.11
+          name: CrystalAI-1.21.11
           path: build/libs/
 
