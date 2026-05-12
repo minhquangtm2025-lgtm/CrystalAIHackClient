@@ -27,8 +27,6 @@ public class AICore {
 
         if (distance > 12.0)
             return 0;
-        if (isBlocked(crystalPos, entityPos))
-            return 0;
 
         double impact = (1.0 - (distance / 12.0));
         double exposure = calculateExposure(crystalPos, entity);
@@ -41,36 +39,32 @@ public class AICore {
         return damage;
     }
 
-    private static boolean isBlocked(Vec3d from, Vec3d to) {
-        if (mc.world == null)
-            return false;
-        RaycastContext context = new RaycastContext(
-                from, to,
-                RaycastContext.ShapeType.COLLIDER,
-                RaycastContext.FluidHandling.NONE,
-                mc.player);
-        HitResult result = mc.world.raycast(context);
-        return result.getType() == HitResult.Type.BLOCK;
-    }
-
     private static double calculateExposure(Vec3d explosionPos, Entity entity) {
         if (mc.world == null)
             return 0;
         Box box = entity.getBoundingBox();
-        double exposure = 0;
-        Vec3d[] directions = {
-                new Vec3d(1, 0, 0), new Vec3d(-1, 0, 0),
-                new Vec3d(0, 1, 0), new Vec3d(0, -1, 0),
-                new Vec3d(0, 0, 1), new Vec3d(0, 0, -1)
+
+        // Tạo các điểm mẫu trên bounding box của người chơi
+        Vec3d[] samplePoints = {
+                new Vec3d(box.minX, box.minY, box.minZ), // góc dưới trước trái
+                new Vec3d(box.maxX, box.minY, box.minZ), // góc dưới trước phải
+                new Vec3d(box.minX, box.minY, box.maxZ), // góc dưới sau trái
+                new Vec3d(box.maxX, box.minY, box.maxZ), // góc dưới sau phải
+                new Vec3d(box.minX, box.maxY, box.minZ), // góc trên trước trái
+                new Vec3d(box.maxX, box.maxY, box.minZ), // góc trên trước phải
+                new Vec3d(box.minX, box.maxY, box.maxZ), // góc trên sau trái
+                new Vec3d(box.maxX, box.maxY, box.maxZ), // góc trên sau phải
+                new Vec3d((box.minX + box.maxX) / 2, (box.minY + box.maxY) / 2, (box.minZ + box.maxZ) / 2) // trung tâm
         };
 
-        for (Vec3d dir : directions) {
-            Vec3d testPos = explosionPos.add(dir.multiply(0.5));
-            if (!isRayBlocked(explosionPos, testPos)) {
-                exposure += 1.0 / 6.0;
+        int visiblePoints = 0;
+        for (Vec3d point : samplePoints) {
+            if (!isRayBlocked(explosionPos, point)) {
+                visiblePoints++;
             }
         }
-        return Math.min(1.0, exposure);
+
+        return (double) visiblePoints / samplePoints.length;
     }
 
     private static boolean isRayBlocked(Vec3d from, Vec3d to) {
@@ -92,7 +86,6 @@ public class AICore {
         double dx = pos.x - mc.player.getX();
         double dy = pos.y - mc.player.getEyeY();
         double dz = pos.z - mc.player.getZ();
-        double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
 
         float yaw = (float) Math.toDegrees(Math.atan2(dz, dx)) - 90;
         float pitch = (float) -Math.toDegrees(Math.atan2(dy, Math.sqrt(dx * dx + dz * dz)));
@@ -118,6 +111,9 @@ public class AICore {
         float speed = 15.0f;
         float newYaw = previousRotation[0] + yawDiff * (speed / 180.0f);
         float newPitch = previousRotation[1] + pitchDiff * (speed / 180.0f);
+
+        // Clamp pitch để tránh bug camera giật
+        newPitch = Math.max(-90, Math.min(90, newPitch));
 
         mc.player.setYaw(newYaw);
         mc.player.setPitch(newPitch);
@@ -145,11 +141,13 @@ public class AICore {
     public static boolean canSee(Vec3d from, Vec3d to) {
         if (mc.world == null)
             return false;
+
         RaycastContext context = new RaycastContext(
                 from, to,
                 RaycastContext.ShapeType.COLLIDER,
                 RaycastContext.FluidHandling.NONE,
                 mc.player);
+
         HitResult result = mc.world.raycast(context);
         return result.getType() != HitResult.Type.BLOCK;
     }
@@ -158,9 +156,9 @@ public class AICore {
         if (mc.world == null || mc.player == null)
             return false;
 
+        // Chỉ cho phép đặt trên Obsidian hoặc Bedrock
         if (!mc.world.getBlockState(pos).isOf(Blocks.OBSIDIAN) &&
-                !mc.world.getBlockState(pos).isOf(Blocks.BEDROCK) &&
-                !mc.world.getBlockState(pos).isAir()) {
+                !mc.world.getBlockState(pos).isOf(Blocks.BEDROCK)) {
             return false;
         }
 
@@ -174,7 +172,8 @@ public class AICore {
             return false;
         }
 
-        return !mc.world.getOtherEntities(null, new Box(up)).isEmpty();
+        // Chỉ cho đặt khi KHÔNG có entity nào đứng ở đó
+        return mc.world.getOtherEntities(null, new Box(up)).isEmpty();
     }
 
     public static BlockPos getPlacePosition(BlockPos targetPos) {
@@ -229,7 +228,7 @@ public class AICore {
     public static int getArmorValue(ItemStack stack) {
         if (stack.isEmpty())
             return 0;
-        return 0; // Simplified for 1.21.11 compatibility
+        return 0; // ArmorItem not available in 1.21.11
     }
 
     public static double getSpeed(PlayerEntity entity) {
@@ -245,7 +244,7 @@ public class AICore {
         Vec3d pos = new Vec3d(entity.getX(), entity.getY(), entity.getZ());
         Vec3d velocity = entity.getVelocity();
 
-        return pos.add(velocity.multiply(ticks * 0.1));
+        return pos.add(velocity.multiply(ticks));
     }
 
     public static boolean isMoving(Entity entity) {
