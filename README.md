@@ -103,7 +103,7 @@ CrystalAI-1.21.11 là một mod Minecraft nâng cao được thiết kế cho ph
 
 Nếu gặp vấn đề, vui lòng báo cáo tại:
 - GitHub Issues (nếu có repository)
-- Discord server ([nếu có](https://discord.gg/xXD5J84Y))
+- Discord server ([Tại đây](https://discord.gg/xXD5J84Y))
 
 ## Lịch sử cập nhật
 
